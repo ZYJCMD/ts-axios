@@ -2,7 +2,7 @@
 
 ## 项目简介
 
-1. 使用 Typescript 构建 axios---并提交到 node
+1. 使用 Typescript 构建 axios---并提交到 node[some file lost=>尽量找回来了]
 2. 将 ts 版本还原为 JS 构建 axios---ing
 
 ## 重构 Axios 库一些 tricky 的写法
