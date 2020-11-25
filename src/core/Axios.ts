@@ -1,14 +1,14 @@
 import {
-  AxiosRequestConfig,
   AxiosPromise,
+  AxiosRequestConfig,
   AxiosResponse,
   Method,
-  ResolvedFn,
-  RejectedFn
+  RejectedFn,
+  ResolvedFn
 } from '../types'
-import dispatchRequest from './dispatchRequest'
-import InterceptorManager from './InterceptorManager'
-
+import dispatchRequest, { transformURL } from './dispatchRequest'
+import InterceptorManager from './interceptorManager'
+import mergeConfig from './mergeConfig'
 interface Interceptors {
   request: InterceptorManager<AxiosRequestConfig>
   response: InterceptorManager<AxiosResponse>
@@ -18,11 +18,12 @@ interface PromiseChain<T> {
   resolved: ResolvedFn<T> | ((config: AxiosRequestConfig) => AxiosPromise)
   rejected?: RejectedFn
 }
-
 export default class Axios {
+  defaults: AxiosRequestConfig
   interceptors: Interceptors
 
-  constructor() {
+  constructor(initConfig: AxiosRequestConfig) {
+    this.defaults = initConfig
     this.interceptors = {
       request: new InterceptorManager<AxiosRequestConfig>(),
       response: new InterceptorManager<AxiosResponse>()
@@ -39,15 +40,16 @@ export default class Axios {
       config = url
     }
 
+    config = mergeConfig(this.defaults, config)
+
     const chain: PromiseChain<any>[] = [
       {
         resolved: dispatchRequest,
         rejected: undefined
       }
     ]
-
     this.interceptors.request.forEach(interceptor => {
-      chain.unshift(interceptor)
+      chain.unshift(interceptor) //后添加的先执行
     })
 
     this.interceptors.response.forEach(interceptor => {
@@ -55,9 +57,8 @@ export default class Axios {
     })
 
     let promise = Promise.resolve(config)
-
     while (chain.length) {
-      const { resolved, rejected } = chain.shift()!
+      const { resolved, rejected } = chain.shift()! //类型断言不为空
       promise = promise.then(resolved, rejected)
     }
 
@@ -92,6 +93,10 @@ export default class Axios {
     return this._requestMethodWithData('patch', url, data, config)
   }
 
+  getUri(config: AxiosRequestConfig): string {
+    config = mergeConfig(this.defaults, config)
+    return transformURL(config)
+  }
   _requestMethodWithoutData(
     method: Method,
     url: string,
@@ -99,7 +104,7 @@ export default class Axios {
   ): AxiosPromise {
     return this.request(
       Object.assign(config || {}, {
-        method,
+        method: method,
         url
       })
     )
@@ -113,9 +118,9 @@ export default class Axios {
   ): AxiosPromise {
     return this.request(
       Object.assign(config || {}, {
-        method,
+        method: method,
         url,
-        data
+        data: data
       })
     )
   }
